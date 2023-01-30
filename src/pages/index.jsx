@@ -1,72 +1,64 @@
-import React from "react";
-import Head from "next/head";
-import styles from "@/styles/Home.module.css";
-import { useState } from "react";
-import { useRef } from "react";
-import { useEffect } from "react";
+import React, { useRef, useState, useEffect } from "react";
 
 import { retext } from "retext";
 import retextPos from "retext-pos";
 import retextKeywords from "retext-keywords";
 import { toString } from "nlcst-to-string";
+import Keywords from "../components/Keywords";
+import "../styles/Home.module.css";
 
-const KEYWORDS_DATA = "keywords_data";
-
-async function extractKeywords(text) {
-  let keywords = [];
-  let toProcess = await retext()
-    .use(retextPos)
-    .use(retextKeywords)
-    .process(text);
-
-  toProcess.data.keywords.forEach((kw) => {
-    keywords.push(toString(kw.matches[0].node));
-  });
-  return keywords;
-}
-
-function Posts({ data }) {
-  return (
-    <div className={styles.data_container}>
-      {data.map((elem, i) => (
-        <div key={i + "root-div"} className={styles.data_item}>
-          <p>{elem.text}</p>
-          <div>{elem.keywords}</div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-export default function Home() {
+const Home = () => {
   const inputRef = useRef();
-  const [data, setData] = useState([]);
 
-  // saves data to localstorage
+  const [textData, setTextData] = useState([]);
+
   useEffect(() => {
-    if (data.length !== 0) {
-      localStorage.setItem(KEYWORDS_DATA, JSON.stringify(data));
+    if (textData.length !== 0) {
+      localStorage.setItem("my_Data", JSON.stringify(textData));
     }
-  }, [data]);
+  }, [textData]);
 
   useEffect(() => {
-    setData(JSON.parse(localStorage.getItem(KEYWORDS_DATA)) || []);
+    const retrievedData = JSON.parse(localStorage.getItem("my_Data"));
+    setTextData(retrievedData);
   }, []);
 
-  const inputHandler = async (ev) => {
-    let v = inputRef.current.value;
-    let toSave = { text: v, keywords: [], timestamp: Date.now() };
-    toSave.keywords = await extractKeywords(v);
-    setData([toSave, ...data]);
+  const textCatcher = async (text) => {
+    let keywords = [];
+    let v1 = await retext().use(retextPos).use(retextKeywords).process(text);
+
+    v1.data.keywords.forEach((keyword) => {
+      keywords.push(toString(keyword.matches[0].node));
+    });
+    return keywords;
   };
 
+  const submitHandler = async (event) => {
+    event.preventDefault();
+    const enteredText = inputRef.current.value;
+    const capturedText = await textCatcher(enteredText);
+    const myObj = {
+      text: enteredText,
+      keywords: capturedText,
+      timestamp: Date.now(),
+    };
+
+    setTextData((prevState) => {
+      return [myObj, ...prevState];
+    });
+    console.log(myObj);
+  };
   return (
-    <div className={styles.main}>
-      <div className={styles.main_content}>
-        <textarea placeholder="Input text here." ref={inputRef}></textarea>
-        <button onClick={inputHandler}>Save</button>
-        <Posts data={data}></Posts>
+    <div className="main">
+      <form onSubmit={submitHandler}>
+        <textarea type="text" ref={inputRef} />
+        <button type="submit">Save</button>
+      </form>
+      <div className="main_content">
+        <Keywords textData={textData} />
       </div>
     </div>
   );
-}
+};
+
+export default Home;
